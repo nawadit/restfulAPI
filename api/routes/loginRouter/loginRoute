@@ -1,0 +1,51 @@
+const express = require("express");
+const { userModel } = require("../../../schemas");
+const router = express.Router();
+const bcrypt = require("bcrypt");
+const jsonwebtoken = require("jsonwebtoken");
+
+router.post("/", (req, res) => {
+  userModel
+    .find({ email: req.body.email })
+    .then((result) => {
+      if (result.length > 0) {
+        bcrypt
+          .compare(req.body.password, result[0].password)
+          .then((correctPassword) => {
+            if (correctPassword) {
+              let token = jsonwebtoken.sign(
+                { email: result[0].email, id: result[0]._id },
+                process.env.jsonWebTokenKey
+              );
+              console.log(result[0]);
+              res.status(200).json({
+                message: "Auth completed",
+                token,
+              });
+            } else {
+              res.status(404).json({
+                message: "Auth incomplete 1",
+              });
+            }
+          })
+          .catch((error) => {
+            console.log(error);
+            res.status(500).json({
+              message: "Auth incomplete 2",
+            });
+          });
+      } else {
+        res.status(404).json({
+          message: "Auth incomplete 3",
+        });
+      }
+    })
+    .catch((error) => {
+      console.log(error);
+      res.status(500).json({
+        message: "Auth incomplete 4",
+      });
+    });
+});
+
+module.exports = router;

@@ -1,0 +1,72 @@
+const express = require("express");
+const router = express.Router();
+const { userModel } = require("../../../schemas");
+const bcrypt = require("bcrypt");
+const authorization = require("../../middleware/jwt-auth");
+
+router.post("/", (req, res) => {
+  userModel.find({ email: req.body.email }).then((result) => {
+    if (result.length < 1) {
+      bcrypt
+        .hash(req.body.password, 12)
+        .then((password) => {
+          const user = new userModel({
+            name: req.body.name,
+            email: req.body.email,
+            password,
+          });
+
+          user
+            .save()
+            .then((response) => res.status(200).json(response))
+            .catch((error) => res.status(404).json(error));
+        })
+        .catch((error) => {
+          res.status(500).json({
+            message: "internal server error during hashing",
+          });
+        });
+    } else {
+      res.status(409).json({
+        message: "Email already associated with another account",
+      });
+    }
+  });
+});
+
+router.delete("/:id", authorization, (req, res) => {
+  userModel
+    .findOneAndDelete({ _id: req.params.id })
+    .then((result) => {
+      res.status(200).json(result);
+    })
+    .catch((error) => {
+      res.status(200).json(error);
+    });
+});
+
+router.get("/", authorization, (req, res) => {
+  userModel
+    .find()
+    .select("name email _id")
+    .then((result) => {
+      const responseObject = result.map((singleUser) => {
+        return {
+          name: singleUser.name,
+          email: singleUser.email,
+          id: singleUser._id,
+          links: {
+            toDelete: `/user/${result[0]._id}`,
+          },
+        };
+      });
+
+      console.log(responseObject);
+      res.status(200).json(responseObject);
+    })
+    .catch((error) => {
+      res.status(500).json(error);
+    });
+});
+
+module.exports = router;
